@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confluence Autolinks Options</title>
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="options-header">
+        <h1>Confluence Autolinks</h1>
+      </header>
+
+      <form id="autolinks-options-form" class="options-panel">
+        <fieldset>
+          <legend>Sections</legend>
+          <label class="toggle-row" for="show-backlinks">
+            <input id="show-backlinks" type="checkbox" name="showBacklinks" />
+            <span>Backlinks</span>
+          </label>
+          <label class="toggle-row" for="show-child-pages">
+            <input
+              id="show-child-pages"
+              type="checkbox"
+              name="showChildPages"
+            />
+            <span>Child items</span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Child items</legend>
+          <label for="child-depth" class="field-row">
+            <span>Depth</span>
+            <select id="child-depth" name="childDepth"></select>
+          </label>
+          <label for="child-sort" class="field-row">
+            <span>Sort order</span>
+            <select id="child-sort" name="childSort"></select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Maximum links</legend>
+          <div class="field-grid">
+            <label for="max-backlinks">
+              <span>Backlinks</span>
+              <select id="max-backlinks" name="maxBacklinks"></select>
+            </label>
+            <label for="max-child-pages">
+              <span>Child items</span>
+              <select id="max-child-pages" name="maxChildPages"></select>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button id="reset" type="button">Reset</button>
+          <output id="status" aria-live="polite"></output>
+        </div>
+      </form>
+    </main>
+
+    <script type="module" src="/src/options.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:best-practices",
+    "group:definitelyTyped",
+    "github>aquaproj/aqua-renovate-config#2.12.0",
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Update the zizmor CLI version used by zizmor-action",
+      managerFilePatterns: [
+        "/^\\.github/workflows/github-actions-lint\\.yml$/",
+      ],
+      matchStrings: [
+        "version: (?<currentValue>v?\\d+\\.\\d+\\.\\d+) # renovate: depName=zizmorcore/zizmor",
+      ],
+      depNameTemplate: "zizmorcore/zizmor",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "semver",
+    },
+  ],
+  packageRules: [
+    {
+      description: "Group minor and patch updates for dev dependencies",
+      groupSlug: "dev-dependencies-non-major",
+      groupName: "devDependencies (non-major)",
+      matchManagers: ["npm"],
+      matchDepTypes: ["devDependencies"],
+      matchUpdateTypes: ["minor", "patch", "pin"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
+    },
+    {
+      description: "Group minor, patch, and digest updates for GitHub Actions",
+      groupName: "github-actions (non-major)",
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch", "digest", "pinDigest"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
+    },
+    {
+      description: "Group minor and patch updates for workflow tooling",
+      groupName: "workflow tooling (non-major)",
+      matchManagers: ["custom.regex"],
+      matchUpdateTypes: ["minor", "patch", "pin"],
+      automerge: true,
+      automergeType: "pr",
+      minimumReleaseAge: "7 days",
+    },
+  ],
+}

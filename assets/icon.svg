@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Confluence Autolinks icon">
+  <rect width="128" height="128" rx="28" fill="#0c66e4"/>
+  <rect x="20" y="23" width="88" height="82" rx="12" fill="#ffffff"/>
+  <path d="M42 48h44M42 65h34M42 82h26" fill="none" stroke="#172b4d" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="31" cy="48" r="5" fill="#36b37e"/>
+  <circle cx="31" cy="65" r="5" fill="#ffab00"/>
+  <circle cx="31" cy="82" r="5" fill="#6554c0"/>
+  <path d="M81 76c10 0 18-8 18-18s-8-18-18-18h-6M47 52c-10 0-18 8-18 18s8 18 18 18h6" fill="none" stroke="#ff5630" stroke-width="7" stroke-linecap="round"/>
+  <path d="M75 31l-9 9 9 9M53 79l9 9-9 9" fill="none" stroke="#ff5630" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

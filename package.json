@@ -1,0 +1,33 @@
+{
+  "name": "confluence-autolinks",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "build": "vite build",
+    "check": "pnpm format:check && pnpm lint:ci && pnpm typecheck && pnpm test && pnpm build",
+    "dev": "vite build --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "lint": "oxlint . --import-plugin --tsconfig ./tsconfig.json",
+    "lint:ci": "oxlint . --import-plugin --tsconfig ./tsconfig.json --deny-warnings",
+    "lint:fix": "oxlint . --import-plugin --tsconfig ./tsconfig.json --fix",
+    "package": "pnpm build && cd dist && zip -r -FS ../package.zip .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "2.4.0",
+    "@types/chrome": "^0.1.42",
+    "@types/node": "25.8.0",
+    "jsdom": "^29.1.1",
+    "oxlint": "1.64.0",
+    "prettier": "3.8.3",
+    "terser": "5.47.1",
+    "typescript": "6.0.3",
+    "vite": "8.0.13",
+    "vitest": "^4.1.6"
+  }
+}

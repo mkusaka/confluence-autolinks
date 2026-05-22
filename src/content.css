@@ -1,0 +1,208 @@
+.confluence-autolinks {
+  margin: 28px 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid #dfe1e6;
+  color: #172b4d;
+}
+
+.confluence-autolinks__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.confluence-autolinks__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.confluence-autolinks__section {
+  margin-top: 14px;
+}
+
+.confluence-autolinks__section:first-of-type {
+  margin-top: 0;
+}
+
+.confluence-autolinks__section-title {
+  margin: 0 0 8px;
+  color: #44546f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.confluence-autolinks__list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.confluence-autolinks__item {
+  min-width: 0;
+  margin-left: calc(var(--confluence-autolinks-depth, 0) * 18px);
+}
+
+.confluence-autolinks__link {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: #0c66e4;
+  text-decoration: none;
+}
+
+.confluence-autolinks__label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: #44546f;
+}
+
+.confluence-autolinks__link:hover,
+.confluence-autolinks__link:focus {
+  color: #0055cc;
+  text-decoration: underline;
+}
+
+.confluence-autolinks__link-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.confluence-autolinks__type-icon {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: #626f86;
+}
+
+.confluence-autolinks__type-icon--page,
+.confluence-autolinks__type-icon--page::after {
+  border: 1.5px solid currentColor;
+}
+
+.confluence-autolinks__type-icon--page {
+  border-radius: 2px;
+}
+
+.confluence-autolinks__type-icon--page::after {
+  position: absolute;
+  top: -1.5px;
+  right: -1.5px;
+  width: 5px;
+  height: 5px;
+  border-width: 0 0 1.5px 1.5px;
+  background: #ffffff;
+  content: "";
+}
+
+.confluence-autolinks__type-icon--database {
+  border: 1.5px solid currentColor;
+  border-radius: 50% / 18%;
+}
+
+.confluence-autolinks__type-icon--database::before,
+.confluence-autolinks__type-icon--database::after {
+  position: absolute;
+  right: -1.5px;
+  left: -1.5px;
+  height: 5px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.confluence-autolinks__type-icon--database::before {
+  top: -1.5px;
+}
+
+.confluence-autolinks__type-icon--database::after {
+  bottom: -1.5px;
+}
+
+.confluence-autolinks__type-icon--embed {
+  border: 1.5px solid currentColor;
+  border-radius: 7px;
+}
+
+.confluence-autolinks__type-icon--embed::before {
+  position: absolute;
+  top: 5px;
+  left: 3px;
+  width: 6px;
+  height: 1.5px;
+  background: currentColor;
+  content: "";
+}
+
+.confluence-autolinks__type-icon--folder {
+  height: 11px;
+  margin-top: 2px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.confluence-autolinks__type-icon--folder::before {
+  position: absolute;
+  top: -4px;
+  left: -1.5px;
+  width: 7px;
+  height: 4px;
+  border: 1.5px solid currentColor;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  content: "";
+}
+
+.confluence-autolinks__type-icon--whiteboard {
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+
+.confluence-autolinks__type-icon--whiteboard::before {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 5px;
+  height: 1.5px;
+  background: currentColor;
+  content: "";
+  transform: rotate(-35deg);
+}
+
+.confluence-autolinks__meta {
+  color: #626f86;
+  font-size: 12px;
+}
+
+.confluence-autolinks__message {
+  margin: 0;
+  color: #626f86;
+  font-size: 13px;
+}
+
+.confluence-autolinks__message--error {
+  color: #ae2e24;
+}
+
+@media (max-width: 760px) {
+  .confluence-autolinks {
+    margin-top: 22px;
+  }
+
+  .confluence-autolinks__item {
+    margin-left: calc(var(--confluence-autolinks-depth, 0) * 14px);
+  }
+}

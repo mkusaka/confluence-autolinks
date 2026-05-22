@@ -1,0 +1,41 @@
+name: Lint GitHub Actions workflows
+
+on: push
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  github-actions-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install workflow lint tools
+        uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+        with:
+          aqua_version: v2.58.1
+
+      - name: Run actionlint
+        run: actionlint -color
+
+      - name: Run ghalint
+        run: ghalint run
+
+      - name: Check action pinning
+        run: pinact run --check
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@b572f7b1a1c2d41efaab43d504f68d215c3cd727 # v0.5.4
+        with:
+          version: v1.25.0 # renovate: depName=zizmorcore/zizmor
+          advanced-security: false
+          annotations: true
