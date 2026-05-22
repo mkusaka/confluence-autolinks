@@ -606,7 +606,7 @@ export function createAutoLinksPanel(
   const header = document.createElement("div");
   header.className = "confluence-autolinks__header";
 
-  const title = document.createElement("h2");
+  const title = document.createElement("h1");
   title.className = "confluence-autolinks__title";
   title.textContent = "Related links";
 
@@ -714,7 +714,7 @@ function renderLoadingPanel(pageRoot: HTMLElement, sourceKey: string): void {
   panel.setAttribute(STATE_ATTR, "loading");
   panel.setAttribute("aria-label", "Related Confluence links");
 
-  const title = document.createElement("h2");
+  const title = document.createElement("h1");
   title.className = "confluence-autolinks__title";
   title.textContent = "Related links";
 

@@ -498,7 +498,7 @@ describe("createAutoLinksPanel", () => {
       DEFAULT_RENDER_OPTIONS,
     );
 
-    expect(panel.querySelector("h2")?.textContent).toBe("Related links");
+    expect(panel.querySelector("h1")?.textContent).toBe("Related links");
     expect(
       [...panel.querySelectorAll("a")].map((link) => link.textContent),
     ).toEqual(["Source page", "Direct child", "Nested child"]);
