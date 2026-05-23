@@ -1,0 +1,5 @@
+{
+  "ignorePatterns": ["dist/**", "package.zip", "pnpm-lock.yaml"],
+  "printWidth": 80,
+  "sortPackageJson": false
+}
