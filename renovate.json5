@@ -3,7 +3,7 @@
   extends: [
     "config:best-practices",
     "group:definitelyTyped",
-    "github>aquaproj/aqua-renovate-config#2.12.0",
+    "github>aquaproj/aqua-renovate-config#2.12.1",
   ],
   customManagers: [
     {
