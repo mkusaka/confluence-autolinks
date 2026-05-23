@@ -197,6 +197,114 @@
   color: #ae2e24;
 }
 
+.confluence-autolinks__preview {
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid #dfe1e6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow:
+    0 8px 12px rgb(9 30 66 / 15%),
+    0 0 1px rgb(9 30 66 / 31%);
+  color: #172b4d;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.confluence-autolinks__preview-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.confluence-autolinks__preview-icon {
+  margin-top: 2px;
+}
+
+.confluence-autolinks__preview-title {
+  min-width: 0;
+  color: #172b4d;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.confluence-autolinks__preview-meta,
+.confluence-autolinks__preview-footer,
+.confluence-autolinks__preview-loading {
+  color: #626f86;
+  font-size: 12px;
+}
+
+.confluence-autolinks__preview-meta {
+  margin-top: 6px;
+}
+
+.confluence-autolinks__preview-byline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: #44546f;
+  font-size: 12px;
+}
+
+.confluence-autolinks__preview-avatar {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #dfe1e6;
+  color: #172b4d;
+  font-size: 11px;
+  font-weight: 600;
+  object-fit: cover;
+}
+
+.confluence-autolinks__preview-excerpt {
+  display: -webkit-box;
+  margin: 10px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  color: #172b4d;
+  -webkit-line-clamp: 4;
+}
+
+.confluence-autolinks__preview-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.confluence-autolinks__preview-label {
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #f1f2f4;
+  color: #44546f;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.confluence-autolinks__preview-footer {
+  margin-top: 12px;
+}
+
+.confluence-autolinks__preview-loading {
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .confluence-autolinks {
     margin-top: 22px;

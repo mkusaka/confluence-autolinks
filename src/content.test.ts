@@ -3,6 +3,7 @@ import {
   createAutoLinksPanel,
   fetchBacklinks,
   fetchChildPages,
+  fetchPagePreview,
   getCurrentPageContext,
   renderAutoLinksData,
   type AutoLinkData,
@@ -33,6 +34,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("getCurrentPageContext", () => {
@@ -466,6 +468,90 @@ describe("fetchChildPages", () => {
   });
 });
 
+describe("fetchPagePreview", () => {
+  it("uses REST API v2 page details and extracts preview metadata", async () => {
+    const fetchMock = vi.fn(async (path: string) => {
+      if (path === "/wiki/api/v2/users-bulk") {
+        return createJsonResponse({
+          results: [
+            {
+              accountId: "account-1",
+              displayName: "Example User",
+            },
+          ],
+        });
+      }
+
+      return createJsonResponse({
+        id: "111",
+        title: "Source page",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        version: {
+          authorId: "account-1",
+          createdAt: "2026-01-05T00:00:00.000Z",
+          number: 3,
+        },
+        body: {
+          view: {
+            value: `
+              <h1>Source page</h1>
+              <p>Example project launch planning notes.</p>
+            `,
+          },
+        },
+        labels: {
+          results: [{ name: "example" }, { label: "launch" }],
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchPagePreview({
+        href: "https://example.atlassian.net/wiki/spaces/ENG/pages/111",
+        id: "111",
+        title: "Fallback title",
+        type: "page",
+      }),
+    ).resolves.toEqual({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      excerpt: "Example project launch planning notes.",
+      href: "https://example.atlassian.net/wiki/spaces/ENG/pages/111",
+      id: "111",
+      labels: ["example", "launch"],
+      title: "Source page",
+      type: "page",
+      updatedBy: {
+        accountId: "account-1",
+        displayName: "Example User",
+      },
+      updatedAt: "2026-01-05T00:00:00.000Z",
+      versionNumber: 3,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/wiki/api/v2/pages/111?body-format=view&include-labels=true&include-version=true",
+      expect.objectContaining({
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/wiki/api/v2/users-bulk",
+      expect.objectContaining({
+        body: JSON.stringify({ accountIds: ["account-1"] }),
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+  });
+});
+
 describe("createAutoLinksPanel", () => {
   it("renders backlinks and depth-indented child items", () => {
     const panel = createAutoLinksPanel(
@@ -512,6 +598,122 @@ describe("createAutoLinksPanel", () => {
         .querySelectorAll(".confluence-autolinks__type-icon")[2]
         .getAttribute("aria-label"),
     ).toBe("Database");
+  });
+
+  it("shows a REST API page preview when a page link is hovered", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (path: string) => {
+      if (path === "/wiki/api/v2/users-bulk") {
+        return createJsonResponse({
+          results: [
+            {
+              accountId: "account-1",
+              displayName: "Example User",
+            },
+          ],
+        });
+      }
+
+      return createJsonResponse({
+        id: "111",
+        title: "Source page",
+        version: {
+          authorId: "account-1",
+          createdAt: "2026-01-05T00:00:00.000Z",
+          number: 4,
+        },
+        body: {
+          view: {
+            value: "<p>Preview body from REST API v2.</p>",
+          },
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const panel = createAutoLinksPanel(
+      {
+        backlinks: [
+          {
+            href: "https://example.atlassian.net/wiki/spaces/ENG/pages/111",
+            id: "111",
+            title: "Source page",
+            type: "page",
+          },
+        ],
+        childPages: [],
+        errors: {},
+      },
+      DEFAULT_RENDER_OPTIONS,
+    );
+    document.body.append(panel);
+
+    const link = panel.querySelector("a");
+    link?.dispatchEvent(new Event("pointerenter"));
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.runAllTimersAsync();
+
+    const preview = document.querySelector<HTMLElement>(
+      "[data-confluence-autolinks-preview]",
+    );
+    expect(preview?.textContent).toContain("Source page");
+    expect(preview?.textContent).toContain("Updated by Example User");
+    expect(preview?.textContent).toContain("Preview body from REST API v2.");
+    expect(link?.getAttribute("aria-describedby")).toBe(preview?.id);
+  });
+
+  it("keeps the preview open while the preview itself is hovered", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () =>
+      createJsonResponse({
+        id: "222",
+        title: "Source page",
+        body: {
+          view: {
+            value: "<p>Preview body from REST API v2.</p>",
+          },
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const panel = createAutoLinksPanel(
+      {
+        backlinks: [
+          {
+            href: "https://example.atlassian.net/wiki/spaces/ENG/pages/222",
+            id: "222",
+            title: "Source page",
+            type: "page",
+          },
+        ],
+        childPages: [],
+        errors: {},
+      },
+      DEFAULT_RENDER_OPTIONS,
+    );
+    document.body.append(panel);
+
+    const link = panel.querySelector("a");
+    link?.dispatchEvent(new Event("pointerenter"));
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.runAllTimersAsync();
+
+    const preview = document.querySelector<HTMLElement>(
+      "[data-confluence-autolinks-preview]",
+    );
+    link?.dispatchEvent(new Event("pointerleave"));
+    preview?.dispatchEvent(new Event("pointerenter"));
+    await vi.advanceTimersByTimeAsync(120);
+
+    expect(preview?.isConnected).toBe(true);
+
+    preview?.dispatchEvent(new Event("pointerleave"));
+    await vi.advanceTimersByTimeAsync(120);
+
+    expect(
+      document.querySelector("[data-confluence-autolinks-preview]"),
+    ).toBeNull();
   });
 });
 

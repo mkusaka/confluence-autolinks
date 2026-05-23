@@ -8,6 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     minify: "terser",
     outDir: "dist",
+    sourcemap: "inline",
     terserOptions: {
       format: {
         ascii_only: true,

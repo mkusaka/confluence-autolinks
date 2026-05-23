@@ -10,11 +10,16 @@ import {
 import { readRenderOptions } from "./storage";
 
 const ROOT_ATTR = "data-confluence-autolinks";
+const PREVIEW_ATTR = "data-confluence-autolinks-preview";
 const SOURCE_ATTR = "data-confluence-autolinks-source";
 const STATE_ATTR = "data-confluence-autolinks-state";
 const SCAN_DEBOUNCE_MS = 250;
+const PREVIEW_SHOW_DELAY_MS = 250;
+const PREVIEW_HIDE_DELAY_MS = 120;
 const API_PAGE_LIMIT = 100;
 const DETAILS_FETCH_CONCURRENCY = 8;
+const PREVIEW_EXCERPT_LIMIT = 220;
+const PREVIEW_LABEL_LIMIT = 3;
 const PAGE_INFO_BACKLINK_SECTION_LABELS = new Set([
   "Incoming Links",
   "受信リンク",
@@ -72,6 +77,25 @@ export type AutoLinkData = {
   errors: Partial<Record<"backlinks" | "childPages", string>>;
 };
 
+export type AutoLinkPreview = {
+  id: string;
+  title: string;
+  createdAt?: string;
+  excerpt?: string;
+  href?: string;
+  labels: string[];
+  type?: string;
+  updatedBy?: AutoLinkPreviewUser;
+  updatedAt?: string;
+  versionNumber?: number;
+};
+
+export type AutoLinkPreviewUser = {
+  accountId: string;
+  displayName: string;
+  pictureUrl?: string;
+};
+
 type DescendantsResponse = {
   results?: unknown[];
   _links?: {
@@ -89,6 +113,12 @@ type RelationResponse = {
   };
 };
 
+type RequestJsonOptions = {
+  body?: BodyInit;
+  headers?: Record<string, string>;
+  method?: string;
+};
+
 type ChildNode = {
   children: ChildNode[];
   item: AutoLinkItem;
@@ -99,6 +129,14 @@ let currentOptions = DEFAULT_RENDER_OPTIONS;
 let scanTimer: number | undefined;
 let activeRequestId = 0;
 let activeAbortController: AbortController | undefined;
+let activePreviewAnchor: HTMLAnchorElement | undefined;
+let activePreviewElement: HTMLElement | undefined;
+let previewHideTimer: number | undefined;
+let previewShowTimer: number | undefined;
+let previewToken = 0;
+
+const previewCache = new Map<string, Promise<AutoLinkPreview | null>>();
+const userPreviewCache = new Map<string, Promise<AutoLinkPreviewUser | null>>();
 
 export function findPageRoot(root: ParentNode = document): HTMLElement | null {
   for (const selector of PAGE_ROOT_SELECTORS) {
@@ -287,6 +325,30 @@ export async function fetchChildPages(
       : childPages;
 
   return sortChildItems(enrichedChildPages, context.pageId, options.childSort);
+}
+
+export async function fetchPagePreview(
+  item: AutoLinkItem,
+  signal?: AbortSignal,
+): Promise<AutoLinkPreview | null> {
+  if (!isPagePreviewItem(item)) {
+    return null;
+  }
+
+  const page = await requestJson<Record<string, unknown>>(
+    createPagePreviewPath(item.id),
+    signal,
+  );
+  const preview = pageRecordToPreview(page, item);
+  const updatedByAccountId = getUpdatedByAccountId(page);
+  const updatedBy = updatedByAccountId
+    ? await getCachedUserPreview(updatedByAccountId, signal)
+    : null;
+
+  return {
+    ...preview,
+    ...(updatedBy ? { updatedBy } : {}),
+  };
 }
 
 async function enrichItemsWithContentDetails(
@@ -794,9 +856,7 @@ function createLinkItem(item: AutoLinkItem, useDepth: boolean): HTMLLIElement {
     );
   }
 
-  const content = item.href
-    ? createLinkContent(item.href)
-    : createPlainContent();
+  const content = item.href ? createLinkContent(item) : createPlainContent();
 
   const icon = createTypeIcon(item.type);
   const title = document.createElement("span");
@@ -808,10 +868,27 @@ function createLinkItem(item: AutoLinkItem, useDepth: boolean): HTMLLIElement {
   return listItem;
 }
 
-function createLinkContent(href: string): HTMLAnchorElement {
+function createLinkContent(item: AutoLinkItem): HTMLAnchorElement {
   const link = document.createElement("a");
   link.className = "confluence-autolinks__link";
-  link.href = href;
+  link.href = item.href ?? "";
+
+  if (isPagePreviewItem(item)) {
+    link.addEventListener("pointerenter", () => {
+      scheduleLinkPreview(link, item);
+    });
+    link.addEventListener("pointerleave", schedulePreviewHide);
+    link.addEventListener("focus", () => {
+      scheduleLinkPreview(link, item);
+    });
+    link.addEventListener("blur", schedulePreviewHide);
+    link.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        hideLinkPreview();
+      }
+    });
+  }
+
   return link;
 }
 
@@ -819,6 +896,245 @@ function createPlainContent(): HTMLSpanElement {
   const label = document.createElement("span");
   label.className = "confluence-autolinks__label";
   return label;
+}
+
+function scheduleLinkPreview(
+  anchor: HTMLAnchorElement,
+  item: AutoLinkItem,
+): void {
+  if (previewHideTimer !== undefined) {
+    window.clearTimeout(previewHideTimer);
+    previewHideTimer = undefined;
+  }
+
+  if (previewShowTimer !== undefined) {
+    window.clearTimeout(previewShowTimer);
+  }
+
+  previewShowTimer = window.setTimeout(() => {
+    previewShowTimer = undefined;
+    void showLinkPreview(anchor, item);
+  }, PREVIEW_SHOW_DELAY_MS);
+}
+
+function schedulePreviewHide(): void {
+  if (previewShowTimer !== undefined) {
+    window.clearTimeout(previewShowTimer);
+    previewShowTimer = undefined;
+  }
+
+  if (previewHideTimer !== undefined) {
+    window.clearTimeout(previewHideTimer);
+  }
+
+  previewHideTimer = window.setTimeout(() => {
+    previewHideTimer = undefined;
+    hideLinkPreview();
+  }, PREVIEW_HIDE_DELAY_MS);
+}
+
+function cancelPreviewHide(): void {
+  if (previewHideTimer !== undefined) {
+    window.clearTimeout(previewHideTimer);
+    previewHideTimer = undefined;
+  }
+}
+
+async function showLinkPreview(
+  anchor: HTMLAnchorElement,
+  item: AutoLinkItem,
+): Promise<void> {
+  const token = previewToken + 1;
+  previewToken = token;
+  activePreviewAnchor = anchor;
+
+  const preview = createPreviewShell(item);
+  replaceActivePreview(preview);
+  anchor.setAttribute("aria-describedby", preview.id);
+  positionPreview(anchor, preview);
+
+  const data = await getCachedPagePreview(item);
+
+  if (previewToken !== token || activePreviewAnchor !== anchor) {
+    return;
+  }
+
+  if (!data) {
+    hideLinkPreview();
+    return;
+  }
+
+  preview.replaceChildren(...createPreviewContent(data));
+  positionPreview(anchor, preview);
+}
+
+function hideLinkPreview(): void {
+  previewToken += 1;
+  activePreviewAnchor?.removeAttribute("aria-describedby");
+  activePreviewAnchor = undefined;
+  activePreviewElement?.remove();
+  activePreviewElement = undefined;
+}
+
+function replaceActivePreview(preview: HTMLElement): void {
+  activePreviewElement?.remove();
+  activePreviewElement = preview;
+  document.body.append(preview);
+}
+
+function createPreviewShell(item: AutoLinkItem): HTMLElement {
+  const preview = document.createElement("aside");
+  preview.id = `confluence-autolinks-preview-${item.id}`;
+  preview.className = "confluence-autolinks__preview";
+  preview.setAttribute(PREVIEW_ATTR, "true");
+  preview.setAttribute("role", "tooltip");
+
+  const loading = document.createElement("p");
+  loading.className = "confluence-autolinks__preview-loading";
+  loading.textContent = "Loading preview...";
+  preview.append(loading);
+  preview.addEventListener("pointerenter", cancelPreviewHide);
+  preview.addEventListener("pointerleave", schedulePreviewHide);
+
+  return preview;
+}
+
+function createPreviewContent(preview: AutoLinkPreview): Node[] {
+  const header = document.createElement("div");
+  header.className = "confluence-autolinks__preview-header";
+
+  const icon = createTypeIcon(preview.type);
+  icon.classList.add("confluence-autolinks__preview-icon");
+
+  const title = document.createElement("span");
+  title.className = "confluence-autolinks__preview-title";
+  title.textContent = preview.title;
+
+  header.append(icon, title);
+
+  const nodes: Node[] = [header];
+  const metaItems = createPreviewMetaItems(preview);
+
+  if (preview.updatedBy) {
+    nodes.push(createPreviewByline(preview.updatedBy));
+  }
+
+  if (metaItems.length > 0) {
+    const meta = document.createElement("div");
+    meta.className = "confluence-autolinks__preview-meta";
+    meta.textContent = metaItems.join(" · ");
+    nodes.push(meta);
+  }
+
+  if (preview.excerpt) {
+    const excerpt = document.createElement("p");
+    excerpt.className = "confluence-autolinks__preview-excerpt";
+    excerpt.textContent = preview.excerpt;
+    nodes.push(excerpt);
+  }
+
+  if (preview.labels.length > 0) {
+    const labels = document.createElement("div");
+    labels.className = "confluence-autolinks__preview-labels";
+
+    for (const labelText of preview.labels.slice(0, PREVIEW_LABEL_LIMIT)) {
+      const label = document.createElement("span");
+      label.className = "confluence-autolinks__preview-label";
+      label.textContent = labelText;
+      labels.append(label);
+    }
+
+    nodes.push(labels);
+  }
+
+  const footer = document.createElement("div");
+  footer.className = "confluence-autolinks__preview-footer";
+  footer.textContent = "Confluence";
+  nodes.push(footer);
+
+  return nodes;
+}
+
+function createPreviewByline(user: AutoLinkPreviewUser): HTMLElement {
+  const byline = document.createElement("div");
+  byline.className = "confluence-autolinks__preview-byline";
+
+  if (user.pictureUrl) {
+    const avatar = document.createElement("img");
+    avatar.className = "confluence-autolinks__preview-avatar";
+    avatar.src = user.pictureUrl;
+    avatar.alt = "";
+    byline.append(avatar);
+  } else {
+    const avatar = document.createElement("span");
+    avatar.className =
+      "confluence-autolinks__preview-avatar confluence-autolinks__preview-avatar--fallback";
+    avatar.textContent = user.displayName.slice(0, 1).toUpperCase();
+    byline.append(avatar);
+  }
+
+  const text = document.createElement("span");
+  text.textContent = `Updated by ${user.displayName}`;
+  byline.append(text);
+
+  return byline;
+}
+
+function createPreviewMetaItems(preview: AutoLinkPreview): string[] {
+  const metaItems: string[] = [];
+  const updatedAt = formatPreviewDate(preview.updatedAt);
+  const createdAt = formatPreviewDate(preview.createdAt);
+
+  if (updatedAt) {
+    metaItems.push(`Updated ${updatedAt}`);
+  } else if (createdAt) {
+    metaItems.push(`Created ${createdAt}`);
+  }
+
+  if (preview.versionNumber !== undefined) {
+    metaItems.push(`v${preview.versionNumber}`);
+  }
+
+  return metaItems;
+}
+
+function positionPreview(
+  anchor: HTMLAnchorElement,
+  preview: HTMLElement,
+): void {
+  const anchorRect = anchor.getBoundingClientRect();
+  const margin = 8;
+  const viewportPadding = 12;
+  const width = preview.offsetWidth || 360;
+  const height = preview.offsetHeight || 160;
+  const maxLeft = window.innerWidth - width - viewportPadding;
+  const left = Math.min(
+    Math.max(viewportPadding, anchorRect.left),
+    Math.max(viewportPadding, maxLeft),
+  );
+  const bottomTop = anchorRect.bottom + margin;
+  const top =
+    bottomTop + height + viewportPadding > window.innerHeight
+      ? Math.max(viewportPadding, anchorRect.top - height - margin)
+      : bottomTop;
+
+  preview.style.left = `${left}px`;
+  preview.style.top = `${top}px`;
+}
+
+async function getCachedPagePreview(
+  item: AutoLinkItem,
+): Promise<AutoLinkPreview | null> {
+  const cacheKey = `${normalizeContentType(item.type)}:${item.id}`;
+  const cachedPreview = previewCache.get(cacheKey);
+
+  if (cachedPreview) {
+    return await cachedPreview;
+  }
+
+  const previewPromise = fetchPagePreview(item).catch(() => null);
+  previewCache.set(cacheKey, previewPromise);
+  return await previewPromise;
 }
 
 function createTypeIcon(type: string | undefined): HTMLSpanElement {
@@ -1016,11 +1332,229 @@ function createContentDetailsPath(
   return null;
 }
 
-async function requestJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+function createPagePreviewPath(pageId: string): string {
+  const params = new URLSearchParams({
+    "body-format": "view",
+    "include-labels": "true",
+    "include-version": "true",
+  });
+
+  return `/wiki/api/v2/pages/${pageId}?${params}`;
+}
+
+function createUsersBulkPath(): string {
+  return "/wiki/api/v2/users-bulk";
+}
+
+function pageRecordToPreview(
+  page: Record<string, unknown>,
+  item: AutoLinkItem,
+): AutoLinkPreview {
+  const version = readRecord(page.version);
+  const title =
+    normalizeText(readString(page.title)) ??
+    normalizeText(item.title) ??
+    "Untitled";
+  const viewBody = readRecord(readRecord(page.body)?.view);
+  const viewHtml = readString(viewBody?.value);
+  const createdAt = normalizeText(readString(page.createdAt));
+  const excerpt = viewHtml ? extractPreviewExcerpt(viewHtml, title) : undefined;
+  const updatedAt = normalizeText(readString(version?.createdAt));
+  const versionNumber = normalizeIntegerValue(version?.number);
+
+  return {
+    id: normalizeId(page.id) ?? item.id,
+    labels: collectPreviewLabels(page.labels),
+    title,
+    ...(createdAt ? { createdAt } : {}),
+    ...(excerpt ? { excerpt } : {}),
+    ...(item.href ? { href: item.href } : {}),
+    ...(item.type ? { type: item.type } : { type: "page" }),
+    ...(updatedAt ? { updatedAt } : {}),
+    ...(versionNumber !== undefined ? { versionNumber } : {}),
+  };
+}
+
+function collectPreviewLabels(labels: unknown): string[] {
+  const labelRecord = readRecord(labels);
+  const results = Array.isArray(labelRecord?.results)
+    ? labelRecord.results
+    : [];
+  const names: string[] = [];
+
+  for (const result of results) {
+    const label = readRecord(result);
+    const name =
+      normalizeText(readString(label?.name)) ??
+      normalizeText(readString(label?.label));
+
+    if (name && !names.includes(name)) {
+      names.push(name);
+    }
+  }
+
+  return names;
+}
+
+function getUpdatedByAccountId(
+  page: Record<string, unknown>,
+): string | undefined {
+  const version = readRecord(page.version);
+
+  return normalizeText(readString(version?.authorId));
+}
+
+async function getCachedUserPreview(
+  accountId: string,
+  signal?: AbortSignal,
+): Promise<AutoLinkPreviewUser | null> {
+  const cachedUser = userPreviewCache.get(accountId);
+
+  if (cachedUser) {
+    return await cachedUser;
+  }
+
+  const userPromise = fetchUserPreview(accountId, signal).catch(() => null);
+  userPreviewCache.set(accountId, userPromise);
+  return await userPromise;
+}
+
+async function fetchUserPreview(
+  accountId: string,
+  signal?: AbortSignal,
+): Promise<AutoLinkPreviewUser | null> {
+  const response = await requestJson<{ results?: unknown[] }>(
+    createUsersBulkPath(),
+    signal,
+    {
+      body: JSON.stringify({ accountIds: [accountId] }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    },
+  );
+  const results = Array.isArray(response.results) ? response.results : [];
+
+  for (const result of results) {
+    const user = readRecord(result);
+
+    if (normalizeText(readString(user?.accountId)) === accountId) {
+      return userRecordToPreviewUser(user);
+    }
+  }
+
+  return null;
+}
+
+function userRecordToPreviewUser(
+  user: Record<string, unknown> | undefined,
+): AutoLinkPreviewUser | null {
+  if (!user) {
+    return null;
+  }
+
+  const accountId = normalizeText(readString(user.accountId));
+  const displayName =
+    normalizeText(readString(user.displayName)) ??
+    normalizeText(readString(user.publicName));
+
+  if (!accountId || !displayName) {
+    return null;
+  }
+
+  const picture = readRecord(user.profilePicture);
+  const picturePath = normalizeText(readString(picture?.path));
+
+  return {
+    accountId,
+    displayName,
+    ...(picturePath
+      ? { pictureUrl: createAbsoluteUrl(window.location.origin, picturePath) }
+      : {}),
+  };
+}
+
+function extractPreviewExcerpt(
+  html: string,
+  title: string,
+): string | undefined {
+  const document = new DOMParser().parseFromString(html, "text/html");
+
+  for (const element of document.querySelectorAll(
+    "script,style,nav,button,form",
+  )) {
+    element.remove();
+  }
+
+  const blocks = document.body.querySelectorAll(
+    "p,li,td,blockquote,h2,h3,h4,h5,h6",
+  );
+  const parts: string[] = [];
+
+  for (const block of blocks) {
+    const text = normalizeText(block.textContent ?? undefined);
+
+    if (!text || text === title || parts.includes(text)) {
+      continue;
+    }
+
+    parts.push(text);
+
+    if (parts.join(" ").length >= PREVIEW_EXCERPT_LIMIT) {
+      break;
+    }
+  }
+
+  const excerpt =
+    normalizeText(parts.join(" ")) ??
+    normalizeText(document.body.textContent ?? undefined);
+
+  return excerpt ? truncateText(excerpt, PREVIEW_EXCERPT_LIMIT) : undefined;
+}
+
+function truncateText(text: string, limit: number): string {
+  if (text.length <= limit) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, limit - 1)).trimEnd()}...`;
+}
+
+function formatPreviewDate(value: string | undefined): string | undefined {
+  const timestamp = parseDateTime(value);
+
+  if (timestamp === undefined) {
+    return undefined;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(timestamp);
+}
+
+function isPagePreviewItem(item: AutoLinkItem): boolean {
+  return Boolean(
+    item.href &&
+    normalizeId(item.id) &&
+    normalizeContentType(item.type) === "page",
+  );
+}
+
+async function requestJson<T>(
+  path: string,
+  signal?: AbortSignal,
+  options: RequestJsonOptions = {},
+): Promise<T> {
+  const { headers = {}, ...requestOptions } = options;
   const response = await fetch(path, {
+    ...requestOptions,
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
+      ...headers,
     },
     signal,
   });
@@ -1463,7 +1997,7 @@ function isExtensionNode(node: Node): boolean {
     return false;
   }
 
-  return Boolean(node.closest(`[${ROOT_ATTR}]`));
+  return Boolean(node.closest(`[${ROOT_ATTR}],[${PREVIEW_ATTR}]`));
 }
 
 function getErrorMessage(error: unknown): string {
