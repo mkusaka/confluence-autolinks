@@ -20,14 +20,14 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "2.4.0",
-    "@types/chrome": "^0.1.42",
+    "@types/chrome": "0.1.42",
     "@types/node": "25.8.0",
-    "jsdom": "^29.1.1",
+    "jsdom": "29.1.1",
     "oxfmt": "0.51.0",
-    "oxlint": "1.64.0",
+    "oxlint": "1.65.0",
     "terser": "5.47.1",
     "typescript": "6.0.3",
     "vite": "8.0.13",
-    "vitest": "^4.1.6"
+    "vitest": "4.1.7"
   }
 }
