@@ -1,7 +1,7 @@
 export const MIN_CHILD_DEPTH = 1;
 export const MAX_CHILD_DEPTH = 9;
 export const CHILD_DEPTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
-export const CHILD_SORT_OPTIONS = [
+export const LINK_SORT_OPTIONS = [
   { label: "Content tree", value: "tree-asc" },
   { label: "Content tree (reverse)", value: "tree-desc" },
   { label: "Title A-Z", value: "title-asc" },
@@ -9,12 +9,15 @@ export const CHILD_SORT_OPTIONS = [
   { label: "Created oldest first", value: "created-asc" },
   { label: "Created newest first", value: "created-desc" },
 ] as const;
+export const CHILD_SORT_OPTIONS = LINK_SORT_OPTIONS;
 export const LINK_LIMITS = [10, 25, 50, 100, 200] as const;
 export const RENDER_OPTIONS_STORAGE_KEY = "renderOptions";
 
-export type ChildSortOption = (typeof CHILD_SORT_OPTIONS)[number]["value"];
+export type LinkSortOption = (typeof LINK_SORT_OPTIONS)[number]["value"];
+export type ChildSortOption = LinkSortOption;
 
 export type RenderOptions = {
+  backlinkSort: LinkSortOption;
   childDepth: number;
   childSort: ChildSortOption;
   maxBacklinks: number;
@@ -24,6 +27,7 @@ export type RenderOptions = {
 };
 
 export const DEFAULT_RENDER_OPTIONS: RenderOptions = {
+  backlinkSort: "tree-asc",
   childDepth: 2,
   childSort: "tree-asc",
   maxBacklinks: 50,
@@ -36,13 +40,20 @@ export function normalizeRenderOptions(
   rawOptions: Partial<Record<keyof RenderOptions, unknown>> = {},
 ): RenderOptions {
   return {
+    backlinkSort: normalizeLinkSort(
+      rawOptions.backlinkSort,
+      DEFAULT_RENDER_OPTIONS.backlinkSort,
+    ),
     childDepth: normalizeInteger(
       rawOptions.childDepth,
       DEFAULT_RENDER_OPTIONS.childDepth,
       MIN_CHILD_DEPTH,
       MAX_CHILD_DEPTH,
     ),
-    childSort: normalizeChildSort(rawOptions.childSort),
+    childSort: normalizeLinkSort(
+      rawOptions.childSort,
+      DEFAULT_RENDER_OPTIONS.childSort,
+    ),
     maxBacklinks: normalizeInteger(
       rawOptions.maxBacklinks,
       DEFAULT_RENDER_OPTIONS.maxBacklinks,
@@ -78,15 +89,18 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-function normalizeChildSort(value: unknown): ChildSortOption {
+function normalizeLinkSort(
+  value: unknown,
+  fallback: LinkSortOption,
+): LinkSortOption {
   if (
     typeof value === "string" &&
-    CHILD_SORT_OPTIONS.some((option) => option.value === value)
+    LINK_SORT_OPTIONS.some((option) => option.value === value)
   ) {
-    return value as ChildSortOption;
+    return value as LinkSortOption;
   }
 
-  return DEFAULT_RENDER_OPTIONS.childSort;
+  return fallback;
 }
 
 function normalizeInteger(

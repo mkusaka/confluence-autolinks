@@ -111,6 +111,116 @@ describe("fetchBacklinks", () => {
     );
   });
 
+  it("sorts relation backlinks by title", async () => {
+    const fetchMock = vi.fn(async () =>
+      createJsonResponse({
+        results: [
+          {
+            source: {
+              id: "222",
+              title: "Beta source",
+              type: "page",
+            },
+          },
+          {
+            source: {
+              id: "111",
+              title: "Alpha source",
+              type: "page",
+            },
+          },
+        ],
+        size: 2,
+        limit: 50,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchBacklinks(PAGE_CONTEXT, {
+        ...DEFAULT_RENDER_OPTIONS,
+        backlinkSort: "title-asc",
+      }),
+    ).resolves.toMatchObject([
+      {
+        id: "111",
+        title: "Alpha source",
+      },
+      {
+        id: "222",
+        title: "Beta source",
+      },
+    ]);
+  });
+
+  it("fetches source details for created date backlink sorting", async () => {
+    const fetchMock = vi.fn(async (path: string) => {
+      if (path.includes("/relation/link/")) {
+        return createJsonResponse({
+          results: [
+            {
+              source: {
+                id: "111",
+                title: "Old source",
+                type: "page",
+              },
+            },
+            {
+              source: {
+                id: "222",
+                title: "New source",
+                type: "page",
+              },
+            },
+          ],
+          size: 2,
+          limit: 50,
+        });
+      }
+
+      if (path === "/wiki/api/v2/pages/111") {
+        return createJsonResponse({
+          createdAt: "2024-01-01T00:00:00.000Z",
+          id: "111",
+          title: "Old source",
+          type: "page",
+        });
+      }
+
+      return createJsonResponse({
+        createdAt: "2024-02-01T00:00:00.000Z",
+        id: "222",
+        title: "New source",
+        type: "page",
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchBacklinks(PAGE_CONTEXT, {
+        ...DEFAULT_RENDER_OPTIONS,
+        backlinkSort: "created-desc",
+      }),
+    ).resolves.toMatchObject([
+      {
+        createdAt: "2024-02-01T00:00:00.000Z",
+        id: "222",
+      },
+      {
+        createdAt: "2024-01-01T00:00:00.000Z",
+        id: "111",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/wiki/api/v2/pages/111",
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/wiki/api/v2/pages/222",
+      expect.any(Object),
+    );
+  });
+
   it("falls back to Page Information incoming links when relation API is empty", async () => {
     const fetchMock = vi.fn(async (path: string) => {
       if (path.includes("/relation/link/")) {

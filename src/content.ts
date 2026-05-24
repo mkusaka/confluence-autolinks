@@ -5,6 +5,7 @@ import {
   normalizeRenderOptions,
   shouldRenderAnySection,
   type ChildSortOption,
+  type LinkSortOption,
   type RenderOptions,
 } from "./settings";
 import { readRenderOptions } from "./storage";
@@ -185,14 +186,16 @@ export async function fetchBacklinks(
     const backlinks = await fetchRelationBacklinks(context, options, signal);
 
     if (backlinks.length > 0) {
-      return backlinks;
+      return await prepareBacklinks(backlinks, context, options, signal);
     }
   } catch (error) {
     relationError = error;
   }
 
   try {
-    return await fetchPageInfoBacklinks(context, options, signal);
+    const backlinks = await fetchPageInfoBacklinks(context, options, signal);
+
+    return await prepareBacklinks(backlinks, context, options, signal);
   } catch {
     if (relationError) {
       throw relationError;
@@ -263,6 +266,19 @@ async function fetchRelationBacklinks(
   }
 
   return backlinks;
+}
+
+async function prepareBacklinks(
+  backlinks: AutoLinkItem[],
+  context: PageContext,
+  options: RenderOptions,
+  signal?: AbortSignal,
+): Promise<AutoLinkItem[]> {
+  const enrichedBacklinks = isCreatedSort(options.backlinkSort)
+    ? await enrichItemsWithContentDetails(backlinks, context, true, signal)
+    : backlinks;
+
+  return sortFlatLinkItems(enrichedBacklinks, options.backlinkSort);
 }
 
 async function fetchPageInfoBacklinks(
@@ -450,6 +466,37 @@ function sortChildItems(
   }
 
   return flatten(roots);
+}
+
+function sortFlatLinkItems(
+  items: AutoLinkItem[],
+  sortOption: LinkSortOption,
+): AutoLinkItem[] {
+  const orderedItems = items.map((item, order) => ({ item, order }));
+
+  orderedItems.sort((left, right) => {
+    const direction = sortOption.endsWith("-desc") ? -1 : 1;
+    let result = 0;
+
+    if (sortOption.startsWith("title-")) {
+      result = compareTitle(left.item.title, right.item.title) * direction;
+    } else if (sortOption.startsWith("created-")) {
+      result = compareCreatedAt(
+        left.item.createdAt,
+        right.item.createdAt,
+        direction,
+      );
+    } else {
+      result =
+        sortOption === "tree-desc"
+          ? right.order - left.order
+          : left.order - right.order;
+    }
+
+    return result === 0 ? left.order - right.order : result;
+  });
+
+  return orderedItems.map(({ item }) => item);
 }
 
 function createChildNode(item: AutoLinkItem, order: number): ChildNode {

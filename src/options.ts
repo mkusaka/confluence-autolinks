@@ -4,8 +4,9 @@ import {
   CHILD_SORT_OPTIONS,
   DEFAULT_RENDER_OPTIONS,
   LINK_LIMITS,
+  LINK_SORT_OPTIONS,
   normalizeRenderOptions,
-  type ChildSortOption,
+  type LinkSortOption,
   type RenderOptions,
 } from "./settings";
 import { readRenderOptions, writeRenderOptions } from "./storage";
@@ -15,6 +16,8 @@ const showBacklinksInput =
   getRequiredElement<HTMLInputElement>("show-backlinks");
 const showChildPagesInput =
   getRequiredElement<HTMLInputElement>("show-child-pages");
+const backlinkSortSelect =
+  getRequiredElement<HTMLSelectElement>("backlink-sort");
 const childDepthSelect = getRequiredElement<HTMLSelectElement>("child-depth");
 const childSortSelect = getRequiredElement<HTMLSelectElement>("child-sort");
 const maxBacklinksSelect =
@@ -29,7 +32,8 @@ let statusTimer: number | undefined;
 populateNumberSelect(childDepthSelect, CHILD_DEPTHS);
 populateNumberSelect(maxBacklinksSelect, LINK_LIMITS);
 populateNumberSelect(maxChildPagesSelect, LINK_LIMITS);
-populateChildSortSelect(childSortSelect, CHILD_SORT_OPTIONS);
+populateLinkSortSelect(backlinkSortSelect, LINK_SORT_OPTIONS);
+populateLinkSortSelect(childSortSelect, CHILD_SORT_OPTIONS);
 
 readRenderOptions()
   .then((options) => {
@@ -61,9 +65,9 @@ function populateNumberSelect(
   }
 }
 
-function populateChildSortSelect(
+function populateLinkSortSelect(
   select: HTMLSelectElement,
-  values: readonly { label: string; value: ChildSortOption }[],
+  values: readonly { label: string; value: LinkSortOption }[],
 ): void {
   for (const value of values) {
     const option = document.createElement("option");
@@ -88,6 +92,7 @@ async function saveCurrentFormOptions(message = "Saved"): Promise<void> {
 function applyOptionsToForm(options: RenderOptions): void {
   showBacklinksInput.checked = options.showBacklinks;
   showChildPagesInput.checked = options.showChildPages;
+  backlinkSortSelect.value = options.backlinkSort;
   childDepthSelect.value = String(options.childDepth);
   childSortSelect.value = options.childSort;
   maxBacklinksSelect.value = String(options.maxBacklinks);
@@ -98,6 +103,7 @@ function getOptionsFromForm(): RenderOptions {
   const formData = new FormData(form);
 
   return normalizeRenderOptions({
+    backlinkSort: formData.get("backlinkSort"),
     childDepth: formData.get("childDepth"),
     childSort: formData.get("childSort"),
     maxBacklinks: formData.get("maxBacklinks"),

@@ -20,12 +20,14 @@ describe("normalizeRenderOptions", () => {
     });
   });
 
-  it("preserves supported child sort options", () => {
+  it("preserves supported sort options", () => {
     expect(
       normalizeRenderOptions({
+        backlinkSort: "title-asc",
         childSort: "created-desc",
       }),
     ).toMatchObject({
+      backlinkSort: "title-asc",
       childSort: "created-desc",
     });
   });
@@ -45,11 +47,13 @@ describe("normalizeRenderOptions", () => {
   it("falls back for unsupported values", () => {
     expect(
       normalizeRenderOptions({
+        backlinkSort: "updated-desc",
         childDepth: "nope",
         childSort: "updated-desc",
         showBacklinks: "false",
       }),
     ).toMatchObject({
+      backlinkSort: DEFAULT_RENDER_OPTIONS.backlinkSort,
       childDepth: DEFAULT_RENDER_OPTIONS.childDepth,
       childSort: DEFAULT_RENDER_OPTIONS.childSort,
       showBacklinks: DEFAULT_RENDER_OPTIONS.showBacklinks,

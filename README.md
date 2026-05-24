@@ -68,6 +68,7 @@ Available options:
 
 - Show or hide backlinks
 - Show or hide child items
+- Backlink sort order
 - Child item depth
 - Child item sort order
 - Maximum backlinks
