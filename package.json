@@ -21,7 +21,7 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "2.4.0",
     "@types/chrome": "0.1.42",
-    "@types/node": "25.8.0",
+    "@types/node": "25.9.0",
     "jsdom": "29.1.1",
     "oxfmt": "0.51.0",
     "oxlint": "1.65.0",
