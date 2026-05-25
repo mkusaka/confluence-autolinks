@@ -79,7 +79,7 @@ describe("fetchBacklinks", () => {
               title: "Source page",
               type: "page",
               _links: {
-                webui: "/wiki/spaces/ENG/pages/111/Source+page",
+                webui: "/spaces/ENG/pages/111/Source+page",
               },
             },
           },
@@ -236,7 +236,7 @@ describe("fetchBacklinks", () => {
           <h2>Incoming Links</h2>
           <ul>
             <li>
-              <a href="/wiki/spaces/ENG/pages/111/Source+page">Source page</a>
+              <a href="/spaces/ENG/pages/111/Source+page">Source page</a>
             </li>
             <li>
               <a href="/wiki/spaces/ENG/pages/222/Second+source">Second source</a>
@@ -377,6 +377,9 @@ describe("fetchChildPages", () => {
             childPosition: 0,
             depth: 1,
             id: "222",
+            _links: {
+              webui: "/spaces/ENG/pages/222/Direct+child",
+            },
             parentId: "12345",
             title: "Direct child",
             type: "page",
@@ -407,7 +410,7 @@ describe("fetchChildPages", () => {
       {
         childPosition: 0,
         depth: 1,
-        href: "https://example.atlassian.net/wiki/spaces/ENG/pages/222",
+        href: "https://example.atlassian.net/wiki/spaces/ENG/pages/222/Direct+child",
         id: "222",
         parentId: "12345",
         title: "Direct child",

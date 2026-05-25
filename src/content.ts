@@ -1793,7 +1793,7 @@ function pageInfoAnchorToLinkItem(
   let url: URL;
 
   try {
-    url = new URL(href, context.origin);
+    url = new URL(createConfluenceWebHref(context.origin, href));
   } catch {
     return null;
   }
@@ -1908,7 +1908,7 @@ function getContentHref(
   const embedUrl = readString(content.embedUrl);
 
   if (webui) {
-    return createAbsoluteUrl(context.origin, webui);
+    return createConfluenceWebHref(context.origin, webui);
   }
 
   if (embedUrl) {
@@ -1948,6 +1948,19 @@ function createWhiteboardHref(
 
 function createAbsoluteUrl(origin: string, value: string): string {
   return new URL(value, origin).href;
+}
+
+function createConfluenceWebHref(origin: string, value: string): string {
+  const url = new URL(value, origin);
+
+  if (
+    url.origin === origin &&
+    /^\/(?:display|pages|spaces|x)(?:\/|$)/.test(url.pathname)
+  ) {
+    url.pathname = `/wiki${url.pathname}`;
+  }
+
+  return url.href;
 }
 
 function normalizeNextPath(
