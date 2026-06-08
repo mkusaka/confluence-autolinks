@@ -40,6 +40,9 @@ const PAGE_ROOT_SELECTORS = [
   '[data-testid="renderer-document"]',
   ".ak-renderer-document",
 ];
+const IGNORED_PAGE_ROOT_ANCESTOR_SELECTORS = [
+  ".ak-renderer-wrapper.is-comment",
+];
 
 const PAGE_ID_META_SELECTORS = [
   'meta[name="ajs-page-id"]',
@@ -141,10 +144,15 @@ const userPreviewCache = new Map<string, Promise<AutoLinkPreviewUser | null>>();
 
 export function findPageRoot(root: ParentNode = document): HTMLElement | null {
   for (const selector of PAGE_ROOT_SELECTORS) {
-    const element = root.querySelector(selector);
+    const elements = root.querySelectorAll(selector);
 
-    if (element instanceof HTMLElement) {
-      return element;
+    for (const element of elements) {
+      if (
+        element instanceof HTMLElement &&
+        !isIgnoredPageRootCandidate(element)
+      ) {
+        return element;
+      }
     }
   }
 
@@ -641,19 +649,23 @@ export async function renderAutoLinks(
 ): Promise<void> {
   const pageRoot = findPageRoot(root);
   const context = getCurrentPageContext(window.location, root);
-  const existingPanel = getExistingPanel(root);
 
   if (!pageRoot || !context || !shouldRenderAnySection(options)) {
-    existingPanel?.remove();
+    removeExistingPanels(root);
     return;
   }
 
   const sourceKey = createSourceKey(context, options);
+  const existingPanels = getExistingPanels(root);
+  const existingPageRootPanel = existingPanels.find((panel) =>
+    pageRoot.contains(panel),
+  );
 
   if (
-    existingPanel?.isConnected &&
-    existingPanel.getAttribute(SOURCE_ATTR) === sourceKey
+    existingPageRootPanel?.isConnected &&
+    existingPageRootPanel.getAttribute(SOURCE_ATTR) === sourceKey
   ) {
+    removePanelsExcept(existingPanels, existingPageRootPanel);
     return;
   }
 
@@ -662,7 +674,7 @@ export async function renderAutoLinks(
   activeAbortController?.abort();
   activeAbortController = new AbortController();
 
-  renderLoadingPanel(pageRoot, sourceKey);
+  renderLoadingPanel(root, pageRoot, sourceKey);
 
   const data = await fetchAutoLinkData(
     context,
@@ -693,14 +705,7 @@ export function renderAutoLinksData(
   panel.setAttribute(SOURCE_ATTR, sourceKey);
   panel.setAttribute(STATE_ATTR, "loaded");
 
-  const existingPanel = getExistingPanel(root);
-
-  if (existingPanel?.isConnected) {
-    existingPanel.replaceWith(panel);
-    return;
-  }
-
-  pageRoot.append(panel);
+  replaceOrAppendPanel(root, pageRoot, panel);
 }
 
 export function createAutoLinksPanel(
@@ -815,7 +820,11 @@ function observeOptionChanges(): void {
   });
 }
 
-function renderLoadingPanel(pageRoot: HTMLElement, sourceKey: string): void {
+function renderLoadingPanel(
+  root: ParentNode,
+  pageRoot: HTMLElement,
+  sourceKey: string,
+): void {
   const panel = document.createElement("section");
   panel.className = "confluence-autolinks";
   panel.setAttribute(ROOT_ATTR, "true");
@@ -833,14 +842,7 @@ function renderLoadingPanel(pageRoot: HTMLElement, sourceKey: string): void {
 
   panel.append(title, message);
 
-  const existingPanel = getExistingPanel(document);
-
-  if (existingPanel?.isConnected) {
-    existingPanel.replaceWith(panel);
-    return;
-  }
-
-  pageRoot.append(panel);
+  replaceOrAppendPanel(root, pageRoot, panel);
 }
 
 function createSection({
@@ -2038,8 +2040,51 @@ function createSourceKey(context: PageContext, options: RenderOptions): string {
   )}`;
 }
 
-function getExistingPanel(root: ParentNode = document): HTMLElement | null {
-  return root.querySelector<HTMLElement>(`[${ROOT_ATTR}]`);
+function isIgnoredPageRootCandidate(element: HTMLElement): boolean {
+  return IGNORED_PAGE_ROOT_ANCESTOR_SELECTORS.some((selector) =>
+    Boolean(element.closest(selector)),
+  );
+}
+
+function replaceOrAppendPanel(
+  root: ParentNode,
+  pageRoot: HTMLElement,
+  panel: HTMLElement,
+): void {
+  const existingPanels = getExistingPanels(root);
+  const existingPageRootPanel = existingPanels.find((existingPanel) =>
+    pageRoot.contains(existingPanel),
+  );
+
+  removePanelsExcept(existingPanels, existingPageRootPanel);
+
+  if (existingPageRootPanel?.isConnected) {
+    existingPageRootPanel.replaceWith(panel);
+    return;
+  }
+
+  pageRoot.append(panel);
+}
+
+function getExistingPanels(root: ParentNode = document): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(`[${ROOT_ATTR}]`)];
+}
+
+function removeExistingPanels(root: ParentNode = document): void {
+  for (const panel of getExistingPanels(root)) {
+    panel.remove();
+  }
+}
+
+function removePanelsExcept(
+  panels: HTMLElement[],
+  preservedPanel: HTMLElement | undefined,
+): void {
+  for (const panel of panels) {
+    if (panel !== preservedPanel) {
+      panel.remove();
+    }
+  }
 }
 
 function isExtensionMutation(mutation: MutationRecord): boolean {

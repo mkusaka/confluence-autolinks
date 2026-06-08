@@ -4,6 +4,7 @@ import {
   fetchBacklinks,
   fetchChildPages,
   fetchPagePreview,
+  findPageRoot,
   getCurrentPageContext,
   renderAutoLinksData,
   type AutoLinkData,
@@ -26,6 +27,20 @@ const PAGE_CONTEXT: PageContext = {
   pageUrl: "https://example.atlassian.net/wiki/spaces/ENG/pages/12345",
   spaceKey: "ENG",
 };
+
+const COMMENT_THEN_PAGE_HTML = `
+  <div class="ak-renderer-wrapper is-comment">
+    <div class="ak-renderer-document">
+      <p>Inline comment body</p>
+    </div>
+  </div>
+  <main>
+    <h1>Current page</h1>
+    <div class="ak-renderer-document">
+      <p>Page body</p>
+    </div>
+  </main>
+`;
 
 beforeEach(() => {
   document.head.innerHTML = "";
@@ -65,6 +80,17 @@ describe("getCurrentPageContext", () => {
       pageUrl: "https://example.atlassian.net/wiki/spaces/DOCS/pages/67890",
       spaceKey: "DOCS",
     });
+  });
+});
+
+describe("findPageRoot", () => {
+  it("skips Confluence inline comment renderers", () => {
+    document.body.innerHTML = COMMENT_THEN_PAGE_HTML;
+
+    const pageRoot = findPageRoot(document);
+
+    expect(pageRoot?.textContent).toContain("Page body");
+    expect(pageRoot?.closest(".ak-renderer-wrapper.is-comment")).toBeNull();
   });
 });
 
@@ -847,6 +873,37 @@ describe("renderAutoLinksData", () => {
       "[data-confluence-autolinks]",
     );
 
+    expect(pageRoot?.lastElementChild).toBe(panel);
+    expect(panel?.getAttribute("data-confluence-autolinks-source")).toBe(
+      "source-key",
+    );
+  });
+
+  it("moves an existing panel out of an inline comment renderer", () => {
+    document.body.innerHTML = COMMENT_THEN_PAGE_HTML;
+    const commentRoot = document.querySelector<HTMLElement>(
+      ".ak-renderer-wrapper.is-comment .ak-renderer-document",
+    );
+    const existingPanel = document.createElement("section");
+    existingPanel.setAttribute("data-confluence-autolinks", "true");
+    commentRoot?.append(existingPanel);
+
+    const data: AutoLinkData = {
+      backlinks: [],
+      childPages: [],
+      errors: {},
+    };
+
+    renderAutoLinksData(document, data, DEFAULT_RENDER_OPTIONS, "source-key");
+
+    const pageRoot = findPageRoot(document);
+    const panel = document.querySelector<HTMLElement>(
+      "[data-confluence-autolinks]",
+    );
+
+    expect(
+      commentRoot?.querySelector("[data-confluence-autolinks]"),
+    ).toBeNull();
     expect(pageRoot?.lastElementChild).toBe(panel);
     expect(panel?.getAttribute("data-confluence-autolinks-source")).toBe(
       "source-key",
