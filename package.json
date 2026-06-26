@@ -3,7 +3,7 @@
   "version": "0.0.7",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "build": "vite build",
     "check": "pnpm format:check && pnpm lint:ci && pnpm typecheck && pnpm test && pnpm build",
