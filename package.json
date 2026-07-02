@@ -19,15 +19,15 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "2.4.0",
-    "@types/chrome": "0.1.43",
-    "@types/node": "25.9.2",
+    "@crxjs/vite-plugin": "2.7.0",
+    "@types/chrome": "0.2.0",
+    "@types/node": "25.9.4",
     "jsdom": "29.1.1",
-    "oxfmt": "0.53.0",
-    "oxlint": "1.68.0",
+    "oxfmt": "0.56.0",
+    "oxlint": "1.71.0",
     "terser": "5.48.0",
     "typescript": "6.0.3",
-    "vite": "8.0.16",
-    "vitest": "4.1.8"
+    "vite": "8.1.0",
+    "vitest": "4.1.9"
   }
 }
