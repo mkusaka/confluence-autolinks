@@ -3,3 +3,6 @@ minimumReleaseAgeStrict: true
 strictDepBuilds: true
 trustPolicy: no-downgrade
 blockExoticSubdeps: true
+minimumReleaseAgeExclude:
+  # Renovate security update: vitest@4.1.11
+  - vitest@4.1.11
